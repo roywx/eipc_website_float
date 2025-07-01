@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link href="https://fonts.googleapis.com/css?family=EB+Garamond|Work+Sans:700&display=swap" rel="stylesheet" />
   <meta charset="UTF-8" />
-  <title>Floating Images</title>
+  <title>Floating Images with Captions and Fade Navigation</title>
   <style>
     html, body {
       margin: 0;
@@ -11,6 +12,7 @@
       overflow: hidden;
       height: 100%;
       width: 100%;
+      transition: opacity 1s ease;
     }
 
     .floating {
@@ -21,7 +23,34 @@
       opacity: 0;
       transition: opacity 2s ease-in;
       will-change: transform;
+      cursor: pointer;
+      mix-blend-mode: multiply;
     }
+
+    /* Fade out animation */
+    .fade-out {
+      animation: fadeOut 1s forwards;
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    /* Caption styles */
+    .caption {
+        position: absolute;
+        color: #333;
+        /* Removed background, padding, border-radius, shadow */
+        font-family: 'EB Garamond', serif;
+        font-weight: bold; /* or adjust */
+        font-size: 14px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        white-space: nowrap;
+        user-select: none;
+    }
+
   </style>
 </head>
 <body>
@@ -34,16 +63,30 @@
   const FLOAT_SPEED = 0.5;
   const WOBBLE_FREQ = 0.002;
   const WOBBLE_MAG = 20;
-  const MAX_INSTANCES_PER_IMAGE = 3;
+  const MAX_INSTANCES_PER_IMAGE = 10;
   const SPAWN_INTERVAL = 1000;
+  const BOUNCE_MARGIN = 100;
 
   const imageSources = [
-    "point_cloud_renders/AssembleSound_front.png",
-    "point_cloud_renders/HillAudi_SideB.png",
-    "point_cloud_renders/MichiganStadium_Sideview.png",
-    "point_cloud_renders/OR3_TopDown.png",
-    "point_cloud_renders/MichiganStadium_TopDown.png",
-    "point_cloud_renders/HillAudi_TopDown.png",
+    "point_cloud_renders/AWT_constellation_whiteMatte.gif",
+  ];
+
+  const imageLinks = [
+    "windtunnel.html",
+    "hill.html",
+    "stadium.html",
+    "OR3.html",
+    "stadium.html",
+    "hill.html",
+  ];
+
+  const imageCaptions = [
+    "Aerospace Wind Tunnel Dome",
+    "Hill Auditorium",
+    "Michigan Stadium",
+    "UofM Frankel Cardiovascular Care Center ",
+    "Michigan Stadium",
+    "Hill Auditorium"
   ];
 
   const floaters = [];
@@ -52,117 +95,153 @@
   const template = document.getElementById('image-template');
   let time = 0;
 
-  function createFloater(src, x, y, dx, dy) {
+  function createFloater(src, x, y, dx, dy, index) {
     if (imageCounts[src] >= MAX_INSTANCES_PER_IMAGE) return false;
 
     const imgEl = template.content.firstElementChild.cloneNode(true);
     imgEl.src = src;
     document.body.appendChild(imgEl);
 
+    const captionEl = document.createElement('div');
+    captionEl.className = 'caption';
+    captionEl.textContent = imageCaptions[index] || '';
+    document.body.appendChild(captionEl);
+
     const phaseX = Math.random() * Math.PI * 2;
     const phaseY = Math.random() * Math.PI * 2;
 
-    const floater = { el: imgEl, src, x, y, dx, dy, phaseX, phaseY };
+    const floater = {
+      el: imgEl,
+      captionEl,
+      src,
+      x,
+      y,
+      dx,
+      dy,
+      phaseX,
+      phaseY,
+      paused: false
+    };
     floaters.push(floater);
     imageCounts[src]++;
 
     requestAnimationFrame(() => { imgEl.style.opacity = 1; });
+
+    imgEl.style.pointerEvents = "auto";
+
+    imgEl.addEventListener('mouseenter', () => {
+      floater.paused = true;
+      captionEl.style.opacity = 1;
+    });
+    imgEl.addEventListener('mouseleave', () => {
+      floater.paused = false;
+      captionEl.style.opacity = 0;
+    });
+
+    const url = (index !== -1) ? imageLinks[index] : 'default.html';
+    imgEl.addEventListener('click', () => {
+      document.body.classList.add('fade-out');
+      setTimeout(() => {
+        window.location.href = url;
+      }, 1000);
+    });
+
     return true;
   }
 
   function spawnFromEdge() {
-  const src = imageSources[Math.floor(Math.random() * imageSources.length)];
-  if (imageCounts[src] >= MAX_INSTANCES_PER_IMAGE) return;
+    const src = imageSources[Math.floor(Math.random() * imageSources.length)];
+    if (imageCounts[src] >= MAX_INSTANCES_PER_IMAGE) return;
 
-  const side = Math.floor(Math.random() * 4); // 0 = top, 1 = right, 2 = bottom, 3 = left
-  let x, y, dx, dy;
+    const side = Math.floor(Math.random() * 4);
+    let x, y, dx, dy;
+    const buffer = 200;
 
-  const buffer = 200; // how far outside screen to spawn
+    switch (side) {
+      case 0:
+        x = Math.random() * window.innerWidth;
+        y = -buffer;
+        dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+        dy = Math.random() * FLOAT_SPEED;
+        break;
+      case 1:
+        x = window.innerWidth + buffer;
+        y = Math.random() * window.innerHeight;
+        dx = -Math.random() * FLOAT_SPEED;
+        dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+        break;
+      case 2:
+        x = Math.random() * window.innerWidth;
+        y = window.innerHeight + buffer;
+        dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+        dy = -Math.random() * FLOAT_SPEED;
+        break;
+      case 3:
+        x = -buffer;
+        y = Math.random() * window.innerHeight;
+        dx = Math.random() * FLOAT_SPEED;
+        dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+        break;
+    }
 
-  switch (side) {
-    case 0: // top
-      x = Math.random() * window.innerWidth;
-      y = -buffer;
-      dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
-      dy = Math.random() * FLOAT_SPEED;
-      break;
-    case 1: // right
-      x = window.innerWidth + buffer;
-      y = Math.random() * window.innerHeight;
-      dx = -Math.random() * FLOAT_SPEED;
-      dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
-      break;
-    case 2: // bottom
-      x = Math.random() * window.innerWidth;
-      y = window.innerHeight + buffer;
-      dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
-      dy = -Math.random() * FLOAT_SPEED;
-      break;
-    case 3: // left
-      x = -buffer;
-      y = Math.random() * window.innerHeight;
-      dx = Math.random() * FLOAT_SPEED;
-      dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
-      break;
+    const srcIndex = imageSources.indexOf(src);
+    createFloater(src, x, y, dx, dy, srcIndex);
   }
-
-  createFloater(src, x, y, dx, dy);
-}
-
 
   function animate() {
     time += 1;
 
     floaters.forEach(f => {
-      // Organic motion: small changes to velocity over time
-      f.dx += (Math.random() - 0.5) * 0.01;
-      f.dy += (Math.random() - 0.5) * 0.01;
+      if (!f.paused) {
+        f.dx += (Math.random() - 0.5) * 0.01;
+        f.dy += (Math.random() - 0.5) * 0.01;
 
-      f.x += f.dx;
-      f.y += f.dy;
+        f.x += f.dx;
+        f.y += f.dy;
+      }
 
       const wobbleX = Math.sin(time * WOBBLE_FREQ + f.phaseX) * WOBBLE_MAG;
       const wobbleY = Math.cos(time * WOBBLE_FREQ + f.phaseY) * WOBBLE_MAG;
 
-      f.el.style.transform = `translate(${f.x + wobbleX}px, ${f.y + wobbleY}px)`;
-    });
+      const imgX = f.x + wobbleX;
+      const imgY = f.y + wobbleY;
 
-    // Remove floaters that leave the screen
-    for (let i = floaters.length - 1; i >= 0; i--) {
-      const f = floaters[i];
+      f.el.style.transform = `translate(${imgX}px, ${imgY}px)`;
+
+      // Position caption below image with a small vertical gap
       const rect = f.el.getBoundingClientRect();
-      if (
-        rect.right < 0 || rect.left > window.innerWidth ||
-        rect.bottom < 0 || rect.top > window.innerHeight
-      ) {
-        f.el.remove();
-        floaters.splice(i, 1);
-        imageCounts[f.src]--;
-      }
-    }
+      const captionX = imgX + rect.width / 2 - f.captionEl.offsetWidth / 2;
+      const captionY = imgY + rect.height + 6;
+      f.captionEl.style.transform = `translate(${captionX}px, ${captionY}px)`;
+
+      // Bounce logic
+      if (rect.left < -BOUNCE_MARGIN && f.dx < 0) f.dx *= -1;
+      if (rect.right > window.innerWidth + BOUNCE_MARGIN && f.dx > 0) f.dx *= -1;
+      if (rect.top < -BOUNCE_MARGIN && f.dy < 0) f.dy *= -1;
+      if (rect.bottom > window.innerHeight + BOUNCE_MARGIN && f.dy > 0) f.dy *= -1;
+    });
 
     requestAnimationFrame(animate);
   }
 
-  // Initial spawn
-  const initialCount = 4 + Math.floor(Math.random() * 3); // 4–6
+  // Initial spawn of 4-6 images
+  const initialCount = 4 + Math.floor(Math.random() * 3);
   for (let i = 0; i < initialCount; i++) {
     const src = imageSources[i % imageSources.length];
     const x = Math.random() * window.innerWidth;
     const y = Math.random() * window.innerHeight;
     const dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
     const dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
-    createFloater(src, x, y, dx, dy);
+    createFloater(src, x, y, dx, dy, i);
   }
 
-  // Continuous spawning
-setInterval(() => {
-  const spawnCount = 1 + Math.floor(Math.random() * 4); // 1 to 4 floaters
-  for (let i = 0; i < spawnCount; i++) {
-    spawnFromEdge();
-  }
-}, SPAWN_INTERVAL);
-
+  // Continuous spawning from edges
+  setInterval(() => {
+    const spawnCount = 1 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < spawnCount; i++) {
+      spawnFromEdge();
+    }
+  }, SPAWN_INTERVAL);
 
   animate();
 </script>
