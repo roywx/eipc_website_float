@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Floating Images</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: white;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+    }
+
+    .floating {
+      position: absolute;
+      width: 250px;
+      height: auto;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 2s ease-in;
+      will-change: transform;
+    }
+  </style>
+</head>
+<body>
+
+<template id="image-template">
+  <img class="floating" src="" />
+</template>
+
+<script>
+  const FLOAT_SPEED = 0.5;
+  const WOBBLE_FREQ = 0.002;
+  const WOBBLE_MAG = 20;
+  const MAX_INSTANCES_PER_IMAGE = 3;
+  const SPAWN_INTERVAL = 1000;
+
+  const imageSources = [
+    "point_cloud_renders/AssembleSound_front.png",
+    "point_cloud_renders/HillAudi_SideB.png",
+    "point_cloud_renders/MichiganStadium_Sideview.png",
+    "point_cloud_renders/OR3_TopDown.png",
+    "point_cloud_renders/MichiganStadium_TopDown.png",
+    "point_cloud_renders/HillAudi_TopDown.png",
+  ];
+
+  const floaters = [];
+  const imageCounts = {};
+  imageSources.forEach(src => imageCounts[src] = 0);
+  const template = document.getElementById('image-template');
+  let time = 0;
+
+  function createFloater(src, x, y, dx, dy) {
+    if (imageCounts[src] >= MAX_INSTANCES_PER_IMAGE) return false;
+
+    const imgEl = template.content.firstElementChild.cloneNode(true);
+    imgEl.src = src;
+    document.body.appendChild(imgEl);
+
+    const phaseX = Math.random() * Math.PI * 2;
+    const phaseY = Math.random() * Math.PI * 2;
+
+    const floater = { el: imgEl, src, x, y, dx, dy, phaseX, phaseY };
+    floaters.push(floater);
+    imageCounts[src]++;
+
+    requestAnimationFrame(() => { imgEl.style.opacity = 1; });
+    return true;
+  }
+
+  function spawnFromEdge() {
+  const src = imageSources[Math.floor(Math.random() * imageSources.length)];
+  if (imageCounts[src] >= MAX_INSTANCES_PER_IMAGE) return;
+
+  const side = Math.floor(Math.random() * 4); // 0 = top, 1 = right, 2 = bottom, 3 = left
+  let x, y, dx, dy;
+
+  const buffer = 200; // how far outside screen to spawn
+
+  switch (side) {
+    case 0: // top
+      x = Math.random() * window.innerWidth;
+      y = -buffer;
+      dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+      dy = Math.random() * FLOAT_SPEED;
+      break;
+    case 1: // right
+      x = window.innerWidth + buffer;
+      y = Math.random() * window.innerHeight;
+      dx = -Math.random() * FLOAT_SPEED;
+      dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+      break;
+    case 2: // bottom
+      x = Math.random() * window.innerWidth;
+      y = window.innerHeight + buffer;
+      dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+      dy = -Math.random() * FLOAT_SPEED;
+      break;
+    case 3: // left
+      x = -buffer;
+      y = Math.random() * window.innerHeight;
+      dx = Math.random() * FLOAT_SPEED;
+      dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+      break;
+  }
+
+  createFloater(src, x, y, dx, dy);
+}
+
+
+  function animate() {
+    time += 1;
+
+    floaters.forEach(f => {
+      // Organic motion: small changes to velocity over time
+      f.dx += (Math.random() - 0.5) * 0.01;
+      f.dy += (Math.random() - 0.5) * 0.01;
+
+      f.x += f.dx;
+      f.y += f.dy;
+
+      const wobbleX = Math.sin(time * WOBBLE_FREQ + f.phaseX) * WOBBLE_MAG;
+      const wobbleY = Math.cos(time * WOBBLE_FREQ + f.phaseY) * WOBBLE_MAG;
+
+      f.el.style.transform = `translate(${f.x + wobbleX}px, ${f.y + wobbleY}px)`;
+    });
+
+    // Remove floaters that leave the screen
+    for (let i = floaters.length - 1; i >= 0; i--) {
+      const f = floaters[i];
+      const rect = f.el.getBoundingClientRect();
+      if (
+        rect.right < 0 || rect.left > window.innerWidth ||
+        rect.bottom < 0 || rect.top > window.innerHeight
+      ) {
+        f.el.remove();
+        floaters.splice(i, 1);
+        imageCounts[f.src]--;
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  // Initial spawn
+  const initialCount = 4 + Math.floor(Math.random() * 3); // 4–6
+  for (let i = 0; i < initialCount; i++) {
+    const src = imageSources[i % imageSources.length];
+    const x = Math.random() * window.innerWidth;
+    const y = Math.random() * window.innerHeight;
+    const dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+    const dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+    createFloater(src, x, y, dx, dy);
+  }
+
+  // Continuous spawning
+setInterval(() => {
+  const spawnCount = 1 + Math.floor(Math.random() * 4); // 1 to 4 floaters
+  for (let i = 0; i < spawnCount; i++) {
+    spawnFromEdge();
+  }
+}, SPAWN_INTERVAL);
+
+
+  animate();
+</script>
+
+</body>
+</html>
