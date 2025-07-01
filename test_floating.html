@@ -34,8 +34,9 @@
   const FLOAT_SPEED = 0.5;
   const WOBBLE_FREQ = 0.002;
   const WOBBLE_MAG = 20;
-  const MAX_INSTANCES_PER_IMAGE = 3;
+  const MAX_INSTANCES_PER_IMAGE = 1;
   const SPAWN_INTERVAL = 1000;
+  const BOUNCE_MARGIN = 100; // Pixels beyond the screen edge to allow before bouncing
 
   const imageSources = [
     "point_cloud_renders/AssembleSound_front.png",
@@ -71,44 +72,43 @@
   }
 
   function spawnFromEdge() {
-  const src = imageSources[Math.floor(Math.random() * imageSources.length)];
-  if (imageCounts[src] >= MAX_INSTANCES_PER_IMAGE) return;
+    const src = imageSources[Math.floor(Math.random() * imageSources.length)];
+    if (imageCounts[src] >= MAX_INSTANCES_PER_IMAGE) return;
 
-  const side = Math.floor(Math.random() * 4); // 0 = top, 1 = right, 2 = bottom, 3 = left
-  let x, y, dx, dy;
+    const side = Math.floor(Math.random() * 4); // 0 = top, 1 = right, 2 = bottom, 3 = left
+    let x, y, dx, dy;
 
-  const buffer = 200; // how far outside screen to spawn
+    const buffer = 200; // how far outside screen to spawn
 
-  switch (side) {
-    case 0: // top
-      x = Math.random() * window.innerWidth;
-      y = -buffer;
-      dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
-      dy = Math.random() * FLOAT_SPEED;
-      break;
-    case 1: // right
-      x = window.innerWidth + buffer;
-      y = Math.random() * window.innerHeight;
-      dx = -Math.random() * FLOAT_SPEED;
-      dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
-      break;
-    case 2: // bottom
-      x = Math.random() * window.innerWidth;
-      y = window.innerHeight + buffer;
-      dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
-      dy = -Math.random() * FLOAT_SPEED;
-      break;
-    case 3: // left
-      x = -buffer;
-      y = Math.random() * window.innerHeight;
-      dx = Math.random() * FLOAT_SPEED;
-      dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
-      break;
+    switch (side) {
+      case 0: // top
+        x = Math.random() * window.innerWidth;
+        y = -buffer;
+        dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+        dy = Math.random() * FLOAT_SPEED;
+        break;
+      case 1: // right
+        x = window.innerWidth + buffer;
+        y = Math.random() * window.innerHeight;
+        dx = -Math.random() * FLOAT_SPEED;
+        dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+        break;
+      case 2: // bottom
+        x = Math.random() * window.innerWidth;
+        y = window.innerHeight + buffer;
+        dx = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+        dy = -Math.random() * FLOAT_SPEED;
+        break;
+      case 3: // left
+        x = -buffer;
+        y = Math.random() * window.innerHeight;
+        dx = Math.random() * FLOAT_SPEED;
+        dy = (Math.random() - 0.5) * FLOAT_SPEED * 2;
+        break;
+    }
+
+    createFloater(src, x, y, dx, dy);
   }
-
-  createFloater(src, x, y, dx, dy);
-}
-
 
   function animate() {
     time += 1;
@@ -125,21 +125,17 @@
       const wobbleY = Math.cos(time * WOBBLE_FREQ + f.phaseY) * WOBBLE_MAG;
 
       f.el.style.transform = `translate(${f.x + wobbleX}px, ${f.y + wobbleY}px)`;
-    });
 
-    // Remove floaters that leave the screen
-    for (let i = floaters.length - 1; i >= 0; i--) {
-      const f = floaters[i];
-      const rect = f.el.getBoundingClientRect();
-      if (
-        rect.right < 0 || rect.left > window.innerWidth ||
-        rect.bottom < 0 || rect.top > window.innerHeight
-      ) {
-        f.el.remove();
-        floaters.splice(i, 1);
-        imageCounts[f.src]--;
-      }
-    }
+      // Bounce logic
+      // Bounce logic with margin
+    const rect = f.el.getBoundingClientRect();
+
+    if (rect.left < -BOUNCE_MARGIN && f.dx < 0) f.dx *= -1;
+    if (rect.right > window.innerWidth + BOUNCE_MARGIN && f.dx > 0) f.dx *= -1;
+    if (rect.top < -BOUNCE_MARGIN && f.dy < 0) f.dy *= -1;
+    if (rect.bottom > window.innerHeight + BOUNCE_MARGIN && f.dy > 0) f.dy *= -1;
+
+    });
 
     requestAnimationFrame(animate);
   }
@@ -156,13 +152,12 @@
   }
 
   // Continuous spawning
-setInterval(() => {
-  const spawnCount = 1 + Math.floor(Math.random() * 4); // 1 to 4 floaters
-  for (let i = 0; i < spawnCount; i++) {
-    spawnFromEdge();
-  }
-}, SPAWN_INTERVAL);
-
+  setInterval(() => {
+    const spawnCount = 1 + Math.floor(Math.random() * 4); // 1 to 4 floaters
+    for (let i = 0; i < spawnCount; i++) {
+      spawnFromEdge();
+    }
+  }, SPAWN_INTERVAL);
 
   animate();
 </script>
